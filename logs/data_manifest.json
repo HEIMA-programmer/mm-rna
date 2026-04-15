@@ -1,0 +1,94 @@
+{
+  "deeprsma_dir": "C:\\Users\\yanbin\\Desktop\\MM\\DeepRSMA",
+  "csvs": {
+    "All_sf": {
+      "path": "DeepRSMA\\data\\RSM_data\\All_sf_dataset_v1.csv",
+      "rows": 1439,
+      "sha1": "b79579c641b9d4ea245f657d15e37910d71da0b6",
+      "unique_target_rna_ids": 341,
+      "unique_entry_ids": 1439
+    },
+    "Aptamers": {
+      "path": "DeepRSMA\\data\\RSM_data\\Aptamers_dataset_v1.csv",
+      "rows": 520,
+      "sha1": "2c3478b6c030c02065a6f47dc66defdfc0882c73",
+      "unique_target_rna_ids": 164,
+      "unique_entry_ids": 520
+    },
+    "miRNA": {
+      "path": "DeepRSMA\\data\\RSM_data\\miRNA_dataset_v1.csv",
+      "rows": 146,
+      "sha1": "0f9aeac0fc9c733c8162b6711d9086e445c81c69",
+      "unique_target_rna_ids": 40,
+      "unique_entry_ids": 146
+    },
+    "Repeats": {
+      "path": "DeepRSMA\\data\\RSM_data\\Repeats_dataset_v1.csv",
+      "rows": 97,
+      "sha1": "670c945dc5b8d405bd9ac787ed89dc4312b03fd2",
+      "unique_target_rna_ids": 43,
+      "unique_entry_ids": 97
+    },
+    "Ribosomal": {
+      "path": "DeepRSMA\\data\\RSM_data\\Ribosomal_dataset_v1.csv",
+      "rows": 295,
+      "sha1": "6a18f7e74cb5c73e0be7373d1d88d80e3f3c3f53",
+      "unique_target_rna_ids": 11,
+      "unique_entry_ids": 295
+    },
+    "Riboswitch": {
+      "path": "DeepRSMA\\data\\RSM_data\\Riboswitch_dataset_v1.csv",
+      "rows": 100,
+      "sha1": "27fa4fafa0b06135d13e9f1fc2c6837e5c10d746",
+      "unique_target_rna_ids": 34,
+      "unique_entry_ids": 100
+    },
+    "Viral_RNA": {
+      "path": "DeepRSMA\\data\\RSM_data\\Viral_RNA_dataset_v1.csv",
+      "rows": 281,
+      "sha1": "44dc645d509a290204860739cacc4d5a41dea1b9",
+      "unique_target_rna_ids": 49,
+      "unique_entry_ids": 281
+    }
+  },
+  "issues": [],
+  "summary": {
+    "all_sf_total_entry_ids": 1439,
+    "all_sf_missing_contacts": 0,
+    "all_sf_total_target_ids": 341,
+    "all_sf_missing_embeddings": 0,
+    "contact_files_per_dir": {
+      "Aptamers_contact": 520,
+      "miRNA_contact": 146,
+      "Repeats_contact": 97,
+      "Ribosomal_contact": 295,
+      "Riboswitch_contact": 100,
+      "Viral_RNA_contact": 281
+    },
+    "representations_cv_npy_count": 373,
+    "representations_independent_npy_count": 2,
+    "sample_npys": [
+      {
+        "name": "-representations-collection-3-1.npy",
+        "shape": [],
+        "dtype": "object"
+      },
+      {
+        "name": "1p6v_B.npy",
+        "shape": [
+          45,
+          640
+        ],
+        "dtype": "float32"
+      },
+      {
+        "name": "2der_D.npy",
+        "shape": [
+          71,
+          640
+        ],
+        "dtype": "float32"
+      }
+    ]
+  }
+}

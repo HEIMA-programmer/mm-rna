@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(conda --version)",
+      "Bash(where conda:*)",
+      "Read(//c/Users/yanbin/miniconda3/**)",
+      "Bash(\"C:/Users/yanbin/miniconda3/Scripts/conda.exe\" --version)",
+      "Bash(\"C:/Users/yanbin/miniconda3/Scripts/conda.exe\" env:*)",
+      "Bash(\"C:/Users/yanbin/miniconda3/Scripts/conda.exe\" create:*)",
+      "Bash(tasklist)",
+      "Bash(\"C:/Program Files \\(x86\\)/ViennaRNA Package/RNAfold.exe\" --noPS)",
+      "Bash(python -c \"import json; r = json.load\\(open\\('cache/rnafold/Target_3.json'\\)\\); print\\('engine:', r.get\\('engine', 'unknown'\\)\\); print\\('dot_bracket:', r['dot_bracket']\\); print\\('dG:', r['dg']\\)\")"
+    ]
+  }
+}

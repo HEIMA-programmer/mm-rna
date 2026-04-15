@@ -1,0 +1,1 @@
+{"rna_id": "Target_354", "seq": "UUGGGCCGGGUCC", "len": 13, "dot_bracket": "..((((...))))", "dg": -1.9, "struct_types": [4, 4, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0], "exposure": [0.7, 0.7, 0.2, 0.2, 0.2, 0.2, 0.8, 0.8, 0.8, 0.2, 0.2, 0.2, 0.2], "pair_indices": [[5, 9], [4, 10], [3, 11], [2, 12]], "engine": "rnafold"}
