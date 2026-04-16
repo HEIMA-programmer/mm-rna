@@ -46,6 +46,7 @@ class DeepRSMA_ext(nn.Module):
         adapter_use_struct_emb: bool = True,
         bias_direction: str = "both",
         lambda_trainable: bool = True,
+        lambda_init: float = 0.1,
         llm_cache: Optional[LLMCache] = None,
     ):
         super().__init__()
@@ -77,6 +78,7 @@ class DeepRSMA_ext(nn.Module):
                 hidden_dim,
                 lambda_trainable=lambda_trainable,
                 bias_direction=bias_direction,
+                lambda_init=lambda_init,
             )
         else:
             self.cross_attention = cross_attention(hidden_dim)

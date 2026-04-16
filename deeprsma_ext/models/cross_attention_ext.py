@@ -155,16 +155,21 @@ class EncoderWithBias(Encoder):
 class Encoder_1dWithBias(Encoder_1d):
     def __init__(self, n_layer, hidden_size, intermediate_size,
                  num_attention_heads, attention_probs_dropout_prob, hidden_dropout_prob,
-                 lambda_trainable: bool = True, bias_direction: str = "both"):
+                 lambda_trainable: bool = True, bias_direction: str = "both",
+                 lambda_init: float = 0.1):
         super().__init__(n_layer, hidden_size, intermediate_size,
                          num_attention_heads, attention_probs_dropout_prob, hidden_dropout_prob)
         self.lambda_trainable = lambda_trainable
         self.bias_direction = bias_direction
 
-        # Always use nn.Parameter; when lambda_trainable=False just freeze grad.
-        # This keeps device-sync correct when model.to(cuda) is called.
+        # FIX B (Phase 4 round 2): default lambda_init=0.1 (was 1.0).
+        # At t=0, bias_log = 0.1·log(exposure+eps); for exposure=0.2 (stems), bias≈-0.16,
+        # for exposure=0.85 (loops), bias≈-0.016. This is a GENTLE prior that lets model
+        # learn its own Q/K/V representations first, then gradually scale λ up if the
+        # structure prior is truly useful. Initial λ=1.0 was too disruptive early in training.
         self.lams = nn.ParameterList([
-            nn.Parameter(torch.ones(1), requires_grad=lambda_trainable) for _ in range(n_layer)
+            nn.Parameter(torch.full((1,), float(lambda_init)), requires_grad=lambda_trainable)
+            for _ in range(n_layer)
         ])
         self.layer = nn.ModuleList([
             EncoderWithBias(
@@ -221,13 +226,15 @@ class Encoder_1dWithBias(Encoder_1d):
 class cross_attention_ext(cross_attention):
     """Drop-in replacement for DeepRSMA's cross_attention with optional site_bias."""
 
-    def __init__(self, hidden_dim, lambda_trainable: bool = True, bias_direction: str = "both"):
+    def __init__(self, hidden_dim, lambda_trainable: bool = True, bias_direction: str = "both",
+                 lambda_init: float = 0.1):
         super().__init__(hidden_dim)
         self.encoder = Encoder_1dWithBias(
             n_layer=4, hidden_size=hidden_dim, intermediate_size=hidden_dim,
             num_attention_heads=4,
             attention_probs_dropout_prob=0.1, hidden_dropout_prob=0.1,
             lambda_trainable=lambda_trainable, bias_direction=bias_direction,
+            lambda_init=lambda_init,
         )
 
     def forward(self, emb, ex_e_mask, device1, site_bias=None):

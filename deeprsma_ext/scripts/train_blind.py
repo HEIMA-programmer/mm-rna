@@ -93,6 +93,7 @@ def main():
     p.add_argument('--no-gcn', dest='adapter_use_gcn', action='store_false')
     p.add_argument('--no-struct-emb', dest='adapter_use_struct_emb', action='store_false')
     p.add_argument('--lambda-fixed', action='store_true')
+    p.add_argument('--lambda-init', type=float, default=0.1)
     p.add_argument('--exposure-smooth', type=int, default=0)
     p.add_argument('--bias-direction', choices=['both', 'mole_query', 'rna_query'], default='both')
     p.add_argument('--llm', default='rnafm', choices=['rnafm', 'rnabert', 'ernierna', 'rinalmo'])
@@ -172,7 +173,8 @@ def main():
             adapter_use_gcn=args.adapter_use_gcn,
             adapter_use_struct_emb=args.adapter_use_struct_emb,
             bias_direction=args.bias_direction,
-            lambda_trainable=not args.lambda_fixed, llm_cache=llm_cache,
+            lambda_trainable=not args.lambda_fixed, lambda_init=args.lambda_init,
+            llm_cache=llm_cache,
         ).to(device)
         opt = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         loss_fn = nn.MSELoss()

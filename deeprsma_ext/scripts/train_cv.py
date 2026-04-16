@@ -186,6 +186,7 @@ def run_one_seed(args, seed, label, ss_cache, llm_cache, rna_ds, mole_ds, device
             adapter_use_struct_emb=args.adapter_use_struct_emb,
             bias_direction=args.bias_direction,
             lambda_trainable=not args.lambda_fixed,
+            lambda_init=args.lambda_init,
             llm_cache=llm_cache,
         ).to(device)
         opt = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -274,6 +275,8 @@ def main():
     p.add_argument('--no-struct-emb', dest='adapter_use_struct_emb', action='store_false')
     # Bias ablations
     p.add_argument('--lambda-fixed', action='store_true')
+    p.add_argument('--lambda-init', type=float, default=0.1,
+                   help="Initial value for λ (default 0.1; paper spec was 1.0 which we found disruptive)")
     p.add_argument('--exposure-smooth', type=int, default=0)
     p.add_argument('--bias-direction', choices=['both', 'mole_query', 'rna_query'], default='both')
     # LLM swap

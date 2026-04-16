@@ -9,7 +9,13 @@
       "Bash(\"C:/Users/yanbin/miniconda3/Scripts/conda.exe\" create:*)",
       "Bash(tasklist)",
       "Bash(\"C:/Program Files \\(x86\\)/ViennaRNA Package/RNAfold.exe\" --noPS)",
-      "Bash(python -c \"import json; r = json.load\\(open\\('cache/rnafold/Target_3.json'\\)\\); print\\('engine:', r.get\\('engine', 'unknown'\\)\\); print\\('dot_bracket:', r['dot_bracket']\\); print\\('dG:', r['dg']\\)\")"
+      "Bash(python -c \"import json; r = json.load\\(open\\('cache/rnafold/Target_3.json'\\)\\); print\\('engine:', r.get\\('engine', 'unknown'\\)\\); print\\('dot_bracket:', r['dot_bracket']\\); print\\('dG:', r['dg']\\)\")",
+      "WebSearch",
+      "WebFetch(domain:academic.oup.com)",
+      "WebFetch(domain:pmc.ncbi.nlm.nih.gov)",
+      "Bash(awk -F'best_pcc=' '{print $2}')",
+      "Bash(awk '{print $1}')",
+      "Bash(awk 'BEGIN{max=0; epoch=0} {if \\($1>max\\) {max=$1; epoch=NR-1}} END {print \"best_pcc=\" max \" at epoch \" epoch}')"
     ]
   }
 }

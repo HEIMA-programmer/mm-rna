@@ -73,7 +73,15 @@ class RNA_feature_extraction_ext(RNA_feature_extraction):
             use_struct_emb=adapter_use_struct_emb,
         )
         # Per user Spec Step 4: E_combined = Linear(concat(nucleotide_emb, E_adapted))
+        # FIX A (Phase 4 round 2): init Linear to behave like baseline's (x_r + adapted) / 2
+        # at epoch 0. Left half weight = 0.5·I (for nucleotide_emb), right half = 0.5·I (for
+        # adapter). This avoids random-init disturbing the already-well-tuned baseline path;
+        # the model can then GRADUALLY learn to deviate from the mean if structure info helps.
         self.fusion_proj = nn.Linear(hidden_size * 2, hidden_size)
+        with torch.no_grad():
+            half_I = 0.5 * torch.eye(hidden_size)
+            self.fusion_proj.weight.copy_(torch.cat([half_I, half_I], dim=1))
+            self.fusion_proj.bias.zero_()
         self.fallback_to_mean = fallback_to_mean
 
     def _get_llm_feat(self, rid: str, fallback: torch.Tensor, device) -> torch.Tensor:
