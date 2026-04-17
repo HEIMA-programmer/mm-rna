@@ -32,6 +32,9 @@ from deeprsma_ext.data.llm_cache import LLMCache
 RNA_HIDDEN_LEN = 1024
 RNA_SEQ_LEN = 512
 
+# Hand-crafted exposure scores (biological prior)
+EXPOSURE_INIT = {0: 0.20, 1: 0.80, 2: 0.85, 3: 0.90, 4: 0.70}
+
 
 class DeepRSMA_ext(nn.Module):
     def __init__(
@@ -44,9 +47,11 @@ class DeepRSMA_ext(nn.Module):
         adapter_layers: int = 2,
         adapter_use_gcn: bool = True,
         adapter_use_struct_emb: bool = True,
+        fusion_type: str = "residual",
         bias_direction: str = "both",
         lambda_trainable: bool = True,
         lambda_init: float = 0.1,
+        learnable_exposure: bool = True,
         llm_cache: Optional[LLMCache] = None,
     ):
         super().__init__()
@@ -55,7 +60,19 @@ class DeepRSMA_ext(nn.Module):
         self.hidden_dim = hidden_dim
         self.use_adapter = use_adapter
         self.use_bias = use_bias
+        self.use_learnable_exposure = use_bias and learnable_exposure
         self.ss_cache = ss_cache
+
+        # Learnable exposure: Embedding(5→1) initialized to hand-crafted biological prior.
+        # Model can learn to adjust if, e.g., stems should get higher exposure for certain RNA types.
+        if self.use_learnable_exposure:
+            self.exposure_emb = nn.Embedding(5, 1)
+            with torch.no_grad():
+                for k, v in EXPOSURE_INIT.items():
+                    # Store logit (inverse sigmoid) so sigmoid(logit) = v
+                    import math
+                    logit = math.log(v / (1.0 - v + 1e-8))
+                    self.exposure_emb.weight[k] = logit
 
         if use_adapter:
             self.rna_graph_model = RNA_feature_extraction_ext(
@@ -65,6 +82,7 @@ class DeepRSMA_ext(nn.Module):
                 adapter_layers=adapter_layers,
                 adapter_use_gcn=adapter_use_gcn,
                 adapter_use_struct_emb=adapter_use_struct_emb,
+                fusion_type=fusion_type,
                 llm_cache=llm_cache,
             )
         else:
@@ -94,15 +112,29 @@ class DeepRSMA_ext(nn.Module):
         self.relu = nn.ReLU()
 
     def _build_site_bias(self, rna_batch, device):
+        """Build [B, 1024] exposure tensor for cross-attention bias.
+
+        If learnable_exposure=True, uses nn.Embedding(struct_type→scalar) passed through
+        sigmoid to produce exposure in (0,1). This lets the model adjust the biological
+        prior during training.
+        If False, uses the fixed precomputed exposure from SSCache.
+        """
         B = len(rna_batch.rna_len)
         bias = torch.ones(B, RNA_HIDDEN_LEN, device=device)
         for j in range(B):
             rid = rna_batch.t_id[j] if hasattr(rna_batch, "t_id") else None
             if rid is None or not self.ss_cache.has(rid):
                 continue
-            _, _, exp = self.ss_cache.get(rid)
-            L = min(int(rna_batch.rna_len[j]), exp.size(0), RNA_SEQ_LEN)
-            bias[j, :L] = exp[:L].to(device)
+            _, struct_types, exp_fixed = self.ss_cache.get(rid)
+            L = min(int(rna_batch.rna_len[j]), struct_types.size(0), RNA_SEQ_LEN)
+            if self.use_learnable_exposure:
+                # Learnable: embedding logits → sigmoid → exposure ∈ (0, 1)
+                exp_learned = torch.sigmoid(
+                    self.exposure_emb(struct_types[:L].to(device))
+                ).squeeze(-1)   # [L]
+                bias[j, :L] = exp_learned
+            else:
+                bias[j, :L] = exp_fixed[:L].to(device)
         return bias
 
     def forward(self, rna_batch, mole_batch):

@@ -184,15 +184,18 @@ def run_one_seed(args, seed, label, ss_cache, llm_cache, rna_ds, mole_ds, device
             adapter_layers=args.adapter_layers,
             adapter_use_gcn=args.adapter_use_gcn,
             adapter_use_struct_emb=args.adapter_use_struct_emb,
+            fusion_type=args.fusion_type,
             bias_direction=args.bias_direction,
             lambda_trainable=not args.lambda_fixed,
             lambda_init=args.lambda_init,
+            learnable_exposure=args.learnable_exposure,
             llm_cache=llm_cache,
         ).to(device)
         opt = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         loss_fn = nn.MSELoss()
 
         max_p, max_s, max_rmse = -1.0, -1.0, 0.0
+        best_epoch = -1
         for epo in range(args.epochs):
             t0 = time.time()
             model.train()
@@ -220,10 +223,17 @@ def run_one_seed(args, seed, label, ss_cache, llm_cache, rna_ds, mole_ds, device
 
             if pcc > max_p:
                 max_p, max_s, max_rmse = pcc, scc, rmse
+                best_epoch = epo
                 torch.save(
                     model.state_dict(),
                     save_dir / f"{label}_{args.rna_type}_{args.seed_dataset}_{fold_i}_{seed}.pth",
                 )
+
+            # Early stopping
+            if args.patience > 0 and (epo - best_epoch) >= args.patience:
+                print(f"  Early stopping at epoch {epo} (best was epoch {best_epoch}, "
+                      f"patience={args.patience})", flush=True)
+                break
 
             line = (f"  epo {epo:4d}: train_loss={train_loss/len(train_loader):.4f} "
                     f"pcc={pcc:.4f} scc={scc:.4f} rmse={rmse:.4f}  "
@@ -259,6 +269,8 @@ def main():
     p.add_argument('--n-splits', type=int, default=10)
     p.add_argument('--folds', type=int, default=0, help="run first N folds; 0 = all n_splits")
     p.add_argument('--epochs', type=int, default=300)
+    p.add_argument('--patience', type=int, default=0,
+                   help="Early stopping patience (epochs without PCC improvement). 0=disabled.")
     p.add_argument('--rna-type', type=str, default='All_sf')
     p.add_argument('--batch-size', type=int, default=16)
     # Seeds
@@ -273,12 +285,20 @@ def main():
     p.add_argument('--adapter-layers', type=int, default=2)
     p.add_argument('--no-gcn', dest='adapter_use_gcn', action='store_false')
     p.add_argument('--no-struct-emb', dest='adapter_use_struct_emb', action='store_false')
+    p.add_argument('--fusion-type', choices=['residual', 'linear'], default='residual',
+                   help="How to fuse nucleotide_emb + adapter output. "
+                        "'residual' (default): x_r + gate*adapted (gate learnable, init 0). "
+                        "'linear': Linear(concat(x_r, adapted)) per original spec.")
     # Bias ablations
     p.add_argument('--lambda-fixed', action='store_true')
     p.add_argument('--lambda-init', type=float, default=0.1,
                    help="Initial value for λ (default 0.1; paper spec was 1.0 which we found disruptive)")
     p.add_argument('--exposure-smooth', type=int, default=0)
     p.add_argument('--bias-direction', choices=['both', 'mole_query', 'rna_query'], default='both')
+    p.add_argument('--learnable-exposure', action='store_true', default=True,
+                   help="Learn exposure scores via Embedding (default: True). "
+                        "Use --no-learnable-exposure to fix to hand-crafted values.")
+    p.add_argument('--no-learnable-exposure', dest='learnable_exposure', action='store_false')
     # LLM swap
     p.add_argument('--llm', default='rnafm', choices=['rnafm', 'rnabert', 'ernierna', 'rinalmo'])
     p.add_argument('--llm-dim', type=int, default=0, help="override llm_dim; 0 = auto from cache")

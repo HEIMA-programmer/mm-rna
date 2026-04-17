@@ -56,14 +56,13 @@ class RNA_feature_extraction_ext(RNA_feature_extraction):
         adapter_layers: int = 2,
         adapter_use_gcn: bool = True,
         adapter_use_struct_emb: bool = True,
+        fusion_type: str = "residual",
         llm_cache: Optional[LLMCache] = None,
         fallback_to_mean: bool = True,
     ):
         super().__init__(hidden_size)
         self.ss_cache = ss_cache
         self.llm_cache = llm_cache
-        # If user supplied an LLMCache, prefer its actual dim (so we don't silently
-        # mismatch when switching from RNA-FM 640 to RNABERT 120 etc.)
         effective_llm_dim = llm_cache.get_dim() if llm_cache is not None else llm_dim
         self.adapter = StructureAwareAdapter(
             llm_dim=effective_llm_dim,
@@ -72,16 +71,20 @@ class RNA_feature_extraction_ext(RNA_feature_extraction):
             use_gcn=adapter_use_gcn,
             use_struct_emb=adapter_use_struct_emb,
         )
-        # Per user Spec Step 4: E_combined = Linear(concat(nucleotide_emb, E_adapted))
-        # FIX A (Phase 4 round 2): init Linear to behave like baseline's (x_r + adapted) / 2
-        # at epoch 0. Left half weight = 0.5·I (for nucleotide_emb), right half = 0.5·I (for
-        # adapter). This avoids random-init disturbing the already-well-tuned baseline path;
-        # the model can then GRADUALLY learn to deviate from the mean if structure info helps.
-        self.fusion_proj = nn.Linear(hidden_size * 2, hidden_size)
-        with torch.no_grad():
-            half_I = 0.5 * torch.eye(hidden_size)
-            self.fusion_proj.weight.copy_(torch.cat([half_I, half_I], dim=1))
-            self.fusion_proj.bias.zero_()
+        # Fusion strategies (configurable via fusion_type):
+        #   'residual' (recommended): combined = x_r + α·adapted, α learnable scalar init 0.
+        #       At t=0: exact baseline. No information bottleneck. Model learns α via gradient.
+        #   'linear': combined = Linear(concat(x_r, adapted)), init to mean equivalent (Fix A).
+        #       Matches user spec Step 4 literally but has 256→128 bottleneck.
+        self.fusion_type = fusion_type
+        if fusion_type == "residual":
+            self.adapter_gate = nn.Parameter(torch.zeros(1))
+        else:  # "linear"
+            self.fusion_proj = nn.Linear(hidden_size * 2, hidden_size)
+            with torch.no_grad():
+                half_I = 0.5 * torch.eye(hidden_size)
+                self.fusion_proj.weight.copy_(torch.cat([half_I, half_I], dim=1))
+                self.fusion_proj.bias.zero_()
         self.fallback_to_mean = fallback_to_mean
 
     def _get_llm_feat(self, rid: str, fallback: torch.Tensor, device) -> torch.Tensor:
@@ -164,8 +167,11 @@ class RNA_feature_extraction_ext(RNA_feature_extraction):
                 if adapted.size(0) < 512:
                     pad = torch.zeros(512 - adapted.size(0), self.hidden_size, device=device)
                     adapted = torch.cat([adapted, pad], dim=0)       # [512, hidden]
-                combined = torch.cat([out_r_base[j], adapted], dim=-1)  # [512, 2h]
-                combined = self.fusion_proj(combined)                   # [512, h]
+                if self.fusion_type == "residual":
+                    combined = out_r_base[j] + self.adapter_gate * adapted   # [512, h]
+                else:
+                    combined = torch.cat([out_r_base[j], adapted], dim=-1)  # [512, 2h]
+                    combined = self.fusion_proj(combined)                   # [512, h]
             else:
                 if not self.fallback_to_mean:
                     raise KeyError(f"RNA {rid} not in SSCache and fallback_to_mean=False")
